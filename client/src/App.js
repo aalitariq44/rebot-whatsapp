@@ -446,7 +446,7 @@ function App() {
     newSocket.on('ai-response-preview', (data) => {
       console.log('Received ai-response-preview:', data);
       setAiPreview(data);
-      setRemainingTime(data.delay);
+      setRemainingTime(Math.floor(data.delay));
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(() => {
         setRemainingTime(prev => {
@@ -638,7 +638,7 @@ function App() {
                     <strong>معاينة الرد:</strong> {aiPreview.response}
                   </div>
                   <div className="message-time">
-                    سيرد خلال {remainingTime !== null ? remainingTime : aiPreview.delay} ثانية
+                    سيرد خلال {Math.floor(remainingTime !== null ? remainingTime : aiPreview.delay)} ثانية
                   </div>
                   <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '5px' }}>
                     <strong>السبب:</strong> {aiPreview.reason}
