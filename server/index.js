@@ -107,6 +107,11 @@ client.on('message', async (message) => {
     timestamp: moment().format()
   });
   
+  // Emit immediate response start indicator
+  io.emit('ai-response-start', {
+    contact: contact.pushname
+  });
+  
   // Generate AI response (preview and send if autoReply is enabled)
   await generateAndSendResponse(conversationId, contact, appState.settings.autoReply);
 });

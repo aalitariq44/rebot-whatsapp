@@ -443,6 +443,11 @@ function App() {
       setTimeout(() => setAiTyping(false), data.delay * 1000);
     });
 
+    newSocket.on('ai-response-start', (data) => {
+      console.log('Received ai-response-start:', data);
+      setAiPreview({ contact: data.contact, response: 'جاري إنشاء الرد...', delay: 0, reason: '' });
+    });
+
     newSocket.on('ai-response-preview', (data) => {
       console.log('Received ai-response-preview:', data);
       setAiPreview(data);
