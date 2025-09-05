@@ -106,14 +106,17 @@ client.on('message', async (message) => {
     timestamp: moment().format()
   });
   
+  // Generate AI response preview always
+  await generateAndSendResponse(conversationId, contact, false); // false means preview only
+  
   // Generate AI response
   if (appState.settings.autoReply) {
-    await generateAndSendResponse(conversationId, contact);
+    await generateAndSendResponse(conversationId, contact, true); // true means send
   }
 });
 
 // AI Response Generation
-async function generateAndSendResponse(conversationId, contact) {
+async function generateAndSendResponse(conversationId, contact, isSend = true) {
   try {
     const conversation = appState.conversations.get(conversationId) || [];
     const conversationHistory = conversation.slice(-20).map(msg => 
@@ -144,38 +147,60 @@ ${conversationHistory}
     // Calculate response delay based on social psychology
     const responseDelay = calculateResponseDelay(conversation, aiResponse);
     
+    // Generate reason for the response
+    const reasonPrompt = `شرح مختصر لماذا اخترت هذا الرد بناءً على السياق والشخصية:
+
+الرد: ${aiResponse}
+
+تاريخ المحادثة:
+${conversationHistory}
+
+شرح مختصر (بضع كلمات):`;
+    
+    const reasonResult = await model.generateContent(reasonPrompt);
+    const reason = reasonResult.response.text().trim();
+    
     console.log(`اختبار ذكاء اصطناعي - سيتم الرد خلال ${responseDelay} ثانية`);
     
-    // Emit typing indicator
-    io.emit('ai-typing', { contact: contact.pushname, delay: responseDelay });
+    // Emit response preview to frontend
+    io.emit('ai-response-preview', {
+      contact: contact.pushname,
+      delay: responseDelay,
+      response: aiResponse,
+      reason: reason
+    });
+    console.log('Emitted ai-response-preview:', { delay: responseDelay, response: aiResponse, reason: reason });
     
-    // Wait for calculated delay
-    setTimeout(async () => {
-      // Send the message
-      await client.sendMessage(conversationId, aiResponse);
+    if (isSend) {
+      // Emit typing indicator
+      io.emit('ai-typing', { contact: contact.pushname, delay: responseDelay });
       
-      // Save AI response to conversation
-      conversation.push({
-        id: Date.now(),
-        from: 'me',
-        text: aiResponse,
-        timestamp: moment().format(),
-        sender: 'AI Assistant'
-      });
-      
-      // Emit to frontend
-      io.emit('message-sent', {
-        to: contact.pushname,
-        text: aiResponse,
-        timestamp: moment().format(),
-        delay: responseDelay
-      });
-      
-      console.log(`اختبار ذكاء اصطناعي - تم إرسال الرد: ${aiResponse}`);
-      
-    }, responseDelay * 1000);
-    
-  } catch (error) {
+      // Wait for calculated delay
+      setTimeout(async () => {
+        // Send the message
+        await client.sendMessage(conversationId, aiResponse);
+        
+        // Save AI response to conversation
+        conversation.push({
+          id: Date.now(),
+          from: 'me',
+          text: aiResponse,
+          timestamp: moment().format(),
+          sender: 'AI Assistant'
+        });
+        
+        // Emit to frontend
+        io.emit('message-sent', {
+          to: contact.pushname,
+          text: aiResponse,
+          timestamp: moment().format(),
+          delay: responseDelay
+        });
+        
+        console.log(`اختبار ذكاء اصطناعي - تم إرسال الرد: ${aiResponse}`);
+        
+      }, responseDelay * 1000);
+    }  } catch (error) {
     console.error('خطأ في إنشاء الرد:', error);
     io.emit('error', { message: 'خطأ في إنشاء الرد الذكي' });
   }

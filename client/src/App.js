@@ -387,6 +387,7 @@ function App() {
   const [selectedContactId, setSelectedContactId] = useState('');
   const [manualMessage, setManualMessage] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
+  const [aiPreview, setAiPreview] = useState(null);
   
   // Gemini Test Modal State
   const [showGeminiTest, setShowGeminiTest] = useState(false);
@@ -430,11 +431,17 @@ function App() {
         id: Date.now()
       }]);
       setAiTyping(false);
+      setAiPreview(null);
     });
 
     newSocket.on('ai-typing', (data) => {
       setAiTyping(true);
       setTimeout(() => setAiTyping(false), data.delay * 1000);
+    });
+
+    newSocket.on('ai-response-preview', (data) => {
+      console.log('Received ai-response-preview:', data);
+      setAiPreview(data);
     });
 
     newSocket.on('conversation-started', () => {
@@ -605,6 +612,19 @@ function App() {
               {aiTyping && (
                 <div className="message incoming">
                   <div className="message-text">🤖 يكتب رسالة...</div>
+                </div>
+              )}
+              {aiPreview && (
+                <div className="message incoming">
+                  <div className="message-text">
+                    <strong>معاينة الرد:</strong> {aiPreview.response}
+                  </div>
+                  <div className="message-time">
+                    سيرد خلال {aiPreview.delay} ثانية
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '5px' }}>
+                    <strong>السبب:</strong> {aiPreview.reason}
+                  </div>
                 </div>
               )}
             </div>
