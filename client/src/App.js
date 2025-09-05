@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import QRCode from 'qrcode.react';
 import { FaWhatsapp, FaRobot, FaCog, FaPlay, FaStop, FaUser, FaComments } from 'react-icons/fa';
@@ -388,6 +388,8 @@ function App() {
   const [manualMessage, setManualMessage] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
   const [aiPreview, setAiPreview] = useState(null);
+  const [remainingTime, setRemainingTime] = useState(null);
+  const intervalRef = useRef(null);
   
   // Gemini Test Modal State
   const [showGeminiTest, setShowGeminiTest] = useState(false);
@@ -432,6 +434,8 @@ function App() {
       }]);
       setAiTyping(false);
       setAiPreview(null);
+      setRemainingTime(null);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     });
 
     newSocket.on('ai-typing', (data) => {
@@ -442,6 +446,17 @@ function App() {
     newSocket.on('ai-response-preview', (data) => {
       console.log('Received ai-response-preview:', data);
       setAiPreview(data);
+      setRemainingTime(data.delay);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
+        setRemainingTime(prev => {
+          if (prev <= 1) {
+            clearInterval(intervalRef.current);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     });
 
     newSocket.on('conversation-started', () => {
@@ -456,7 +471,10 @@ function App() {
       setAppState(prev => ({ ...prev, settings }));
     });
 
-    return () => newSocket.close();
+    return () => {
+      newSocket.close();
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   const handleGetContacts = () => {
@@ -620,7 +638,7 @@ function App() {
                     <strong>معاينة الرد:</strong> {aiPreview.response}
                   </div>
                   <div className="message-time">
-                    سيرد خلال {aiPreview.delay} ثانية
+                    سيرد خلال {remainingTime !== null ? remainingTime : aiPreview.delay} ثانية
                   </div>
                   <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '5px' }}>
                     <strong>السبب:</strong> {aiPreview.reason}
