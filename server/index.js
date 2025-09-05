@@ -42,7 +42,7 @@ let appState = {
   conversations: new Map(),
   settings: {
     responseDelayMin: parseInt(process.env.DEFAULT_RESPONSE_DELAY_MIN) || 4,
-    responseDelayMax: parseInt(process.env.DEFAULT_RESPONSE_DELAY_MAX) || 120,
+    responseDelayMax: parseInt(process.env.DEFAULT_RESPONSE_DELAY_MAX) || 10,
     personalityMode: 'friendly',
     autoReply: false
   }
