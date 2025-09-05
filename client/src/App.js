@@ -19,6 +19,7 @@ const Header = styled.header`
   text-align: center;
   margin-bottom: 30px;
   color: white;
+  position: relative;
   
   h1 {
     font-size: 2.5rem;
@@ -39,6 +40,12 @@ const Header = styled.header`
     font-weight: bold;
     color: #fff3cd;
     border: 2px solid rgba(255,255,255,0.2);
+  }
+  
+  .test-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
   }
 `;
 
@@ -285,6 +292,82 @@ const Input = styled.input`
   width: 100%;
 `;
 
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    
+    h3 {
+      margin: 0;
+      color: #333;
+    }
+    
+    .close-button {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #666;
+      
+      &:hover {
+        color: #333;
+      }
+    }
+  }
+  
+  .chat-messages {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background: #f8f9fa;
+  }
+  
+  .message {
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 18px;
+    max-width: 80%;
+    
+    &.user {
+      background: #dcf8c6;
+      margin-left: auto;
+      margin-right: 20%;
+    }
+    
+    &.ai {
+      background: white;
+      margin-right: auto;
+      margin-left: 20%;
+    }
+  }
+`;
+
 function App() {
   const [socket, setSocket] = useState(null);
   const [appState, setAppState] = useState({
@@ -304,6 +387,12 @@ function App() {
   const [selectedContactId, setSelectedContactId] = useState('');
   const [manualMessage, setManualMessage] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
+  
+  // Gemini Test Modal State
+  const [showGeminiTest, setShowGeminiTest] = useState(false);
+  const [geminiMessages, setGeminiMessages] = useState([]);
+  const [geminiInput, setGeminiInput] = useState('');
+  const [geminiLoading, setGeminiLoading] = useState(false);
 
   useEffect(() => {
     const newSocket = io('http://localhost:3001');
@@ -393,9 +482,48 @@ function App() {
     socket?.emit('update-settings', newSettings);
   };
 
+  const handleGeminiTest = async () => {
+    if (!geminiInput.trim()) return;
+    
+    const userMessage = geminiInput.trim();
+    setGeminiMessages(prev => [...prev, { type: 'user', text: userMessage }]);
+    setGeminiInput('');
+    setGeminiLoading(true);
+    
+    try {
+      const response = await fetch('http://localhost:3001/api/test-gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          personality: appState.settings.personalityMode
+        }),
+      });
+      
+      const data = await response.json();
+      setGeminiMessages(prev => [...prev, { type: 'ai', text: data.response }]);
+    } catch (error) {
+      console.error('خطأ في اختبار Gemini:', error);
+      setGeminiMessages(prev => [...prev, { type: 'ai', text: 'عذراً، حدث خطأ في الاتصال بـ Gemini' }]);
+    } finally {
+      setGeminiLoading(false);
+    }
+  };
+
+  const clearGeminiChat = () => {
+    setGeminiMessages([]);
+  };
+
   return (
     <AppContainer>
       <Header>
+        <div className="test-button">
+          <Button className="secondary" onClick={() => setShowGeminiTest(true)}>
+            <FaRobot /> اختبار Gemini
+          </Button>
+        </div>
         <h1>
           <FaRobot /> وكيل WhatsApp الذكي
         </h1>
@@ -551,6 +679,52 @@ function App() {
           </ControlPanel>
         </Card>
       </MainGrid>
+
+      {showGeminiTest && (
+        <Modal>
+          <ModalContent>
+            <div className="modal-header">
+              <h3><FaRobot /> اختبار Gemini AI</h3>
+              <button className="close-button" onClick={() => setShowGeminiTest(false)}>×</button>
+            </div>
+            
+            <div className="chat-messages">
+              {geminiMessages.map((msg, index) => (
+                <div key={index} className={`message ${msg.type}`}>
+                  {msg.text}
+                </div>
+              ))}
+              {geminiLoading && (
+                <div className="message ai">
+                  🤖 يكتب رد...
+                </div>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <Input
+                type="text"
+                placeholder="اكتب رسالة لاختبار Gemini..."
+                value={geminiInput}
+                onChange={(e) => setGeminiInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleGeminiTest()}
+                disabled={geminiLoading}
+              />
+              <Button 
+                className="primary" 
+                onClick={handleGeminiTest}
+                disabled={geminiLoading || !geminiInput.trim()}
+              >
+                إرسال
+              </Button>
+            </div>
+            
+            <Button className="secondary" onClick={clearGeminiChat} style={{ width: '100%' }}>
+              مسح المحادثة
+            </Button>
+          </ModalContent>
+        </Modal>
+      )}
     </AppContainer>
   );
 }

@@ -12,7 +12,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: process.env.CLIENT_URL || ["http://localhost:3000", "http://localhost:3002"],
     methods: ["GET", "POST"]
   }
 });
@@ -23,7 +23,7 @@ app.use(express.json());
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // WhatsApp Client
 const client = new Client({
@@ -305,6 +305,34 @@ app.get('/api/status', (req, res) => {
     whatsappReady: appState.isReady,
     activeConversation: appState.isActive
   });
+});
+
+app.post('/api/test-gemini', async (req, res) => {
+  try {
+    const { message, personality = 'friendly' } = req.body;
+    
+    const systemPrompt = `اختبار ذكاء اصطناعي
+
+${personalityPrompts[personality]}
+
+تذكر:
+- هذا اختبار ذكاء اصطناعي لأغراض البحث
+- تكلم بطريقة طبيعية 100% مثل إنسان حقيقي
+- لا تذكر أنك ذكاء اصطناعي
+- اجعل الرد قصيراً ومناسباً للسياق
+
+الرسالة: ${message}
+
+اكتب رداً طبيعياً ومناسباً:`;
+
+    const result = await model.generateContent(systemPrompt);
+    const aiResponse = result.response.text().trim();
+    
+    res.json({ response: aiResponse });
+  } catch (error) {
+    console.error('خطأ في اختبار Gemini:', error);
+    res.status(500).json({ error: 'خطأ في إنشاء الرد' });
+  }
 });
 
 app.get('/api/stats', (req, res) => {
