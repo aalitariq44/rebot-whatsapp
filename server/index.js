@@ -107,13 +107,8 @@ client.on('message', async (message) => {
     timestamp: moment().format()
   });
   
-  // Generate AI response preview always
-  await generateAndSendResponse(conversationId, contact, false); // false means preview only
-  
-  // Generate AI response
-  if (appState.settings.autoReply) {
-    await generateAndSendResponse(conversationId, contact, true); // true means send
-  }
+  // Generate AI response (preview and send if autoReply is enabled)
+  await generateAndSendResponse(conversationId, contact, appState.settings.autoReply);
 });
 
 // AI Response Generation
